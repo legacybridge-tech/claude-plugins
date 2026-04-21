@@ -1,6 +1,6 @@
 ---
 name: memory-recall
-description: Search and recall memories. Auto-triggered when a topic relates to past discussions or the user asks about previous context.
+description: Search and recall memories from the Engram files. Trigger when a topic may relate to past discussions, when the user references previous context, or when the user asks "do you remember…".
 ---
 
 # Memory Recall
@@ -9,7 +9,7 @@ Search and retrieve relevant memories from the memory files.
 
 ## When to Use
 
-This skill is auto-triggered by the Engram hook instructions. Use it when:
+Trigger when:
 
 - The current topic might relate to past discussions
 - The user references something from a previous conversation
@@ -17,6 +17,8 @@ This skill is auto-triggered by the Engram hook instructions. Use it when:
 - The user asks "do you remember..." or similar queries
 
 Do NOT guess or assume — search memory files first, then respond with confidence.
+
+Note: `memory_preferences.md` is already auto-loaded into context via the `@` reference in `CLAUDE.md` — you usually do not need to re-read it here unless the user just updated it.
 
 ## Workflow
 

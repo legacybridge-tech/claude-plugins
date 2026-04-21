@@ -1,13 +1,10 @@
 {
-  "enabled": true,
   "preset": "personal-assistant",
   "files": {
     "preferences": "memory_preferences.md",
     "conversations": "memory_conversations.md",
     "longterm": "memory_longterm.md"
   },
-  "reload_interval": 10,
   "language": "en",
-  "search_mode": "weak",
-  "reminder_file": ".claude/memory-reminder.md"
+  "search_mode": "weak"
 }

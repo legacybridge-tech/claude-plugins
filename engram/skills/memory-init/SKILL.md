@@ -1,6 +1,6 @@
 ---
 name: memory-init
-description: Initialize the memory system. Auto-triggered when the hook reports the memory system is not initialized.
+description: Initialize the Engram memory system — creates configuration, memory files, and CLAUDE.md integration. Trigger when the user sets up persistent memory for a project, or when `.claude/memory-settings.json` is missing and a memory feature is requested.
 ---
 
 # Memory Init
@@ -9,7 +9,11 @@ Initialize the Engram memory system for the current project.
 
 ## When to Use
 
-This skill is auto-triggered by the Engram hook when no `.claude/memory-settings.json` is found. Do NOT wait for the user to ask — when the hook says "Not initialized", immediately begin this workflow.
+Trigger this skill when:
+
+- The user explicitly asks to set up, initialize, or configure Engram / persistent memory
+- A memory-related skill (`memory-remember`, `memory-recall`, `memory-status`) is requested but `.claude/memory-settings.json` does not exist
+- The user re-runs init to upgrade an existing configuration (e.g. to change preset, language, or search_mode)
 
 ## Workflow
 
@@ -36,13 +40,13 @@ memory_longterm.md       (Long-term memories)
 
 ### 3. Ask Language Preference
 
-- `en` — English instructions injected by hook (default)
-- `zh` — Chinese instructions injected by hook
+- `en` — English CLAUDE.md section (default)
+- `zh` — Chinese CLAUDE.md section
 
 ### 3.5 Ask Search Mode
 
-- `strong` — 每次回覆前都先搜尋記憶 / Search memories before EVERY response (no exceptions)
-- `weak` — 僅在判斷需要時搜尋 / Only search when context suggests it's relevant (default)
+- `strong` — 回覆前預設先用 `memory-recall` 檢查一次記憶 / Check memories before responding by default
+- `weak` — 判斷話題可能涉及過去時才搜尋 / Search only when a topic may involve past context (default)
 
 ### 4. Create Configuration
 
@@ -50,17 +54,14 @@ Create `.claude/memory-settings.json` with the chosen settings:
 
 ```json
 {
-  "enabled": true,
   "preset": "<chosen-preset>",
   "files": {
     "preferences": "<preferences-filename>",
     "conversations": "<conversations-filename>",
     "longterm": "<longterm-filename>"
   },
-  "reload_interval": 10,
   "language": "<en|zh>",
-  "search_mode": "<strong|weak>",
-  "reminder_file": ".claude/memory-reminder.md"
+  "search_mode": "<strong|weak>"
 }
 ```
 
@@ -70,18 +71,7 @@ Copy the template files from the plugin's `templates/presets/<preset>/` director
 
 Read each template file and write it to the project root with the configured file names.
 
-Replace `{DATE}` placeholders with the current date (YYYY-MM-DD format).
-
-### 5b. Create Reminder File
-
-Copy the reminder template from the plugin's `templates/` directory to `.claude/memory-reminder.md`:
-
-- If language is `zh`: copy from `templates/memory-reminder-zh.md`
-- If language is `en`: copy from `templates/memory-reminder-en.md`
-
-The reminder file uses `{{PREFS_FILE}}`, `{{CONVOS_FILE}}`, `{{LONGTERM_FILE}}`, `{{RELOAD_INTERVAL}}`, and `{{SEARCH_MODE_INSTRUCTION}}` placeholders — these are automatically substituted at runtime by the hook script. **Do NOT replace them during init.**
-
-Tell the user: "The reminder instructions are stored in `.claude/memory-reminder.md`. This is the legacy fallback — the main instructions are now in CLAUDE.md."
+Replace `{DATE}` placeholders with the current date (run `date '+%Y-%m-%d'` via Bash to get it).
 
 ### 5c. Append Engram Section to CLAUDE.md
 
@@ -95,14 +85,13 @@ Replace the following placeholders with the actual configured values:
 - `{PREFS_FILE}` → preferences file name
 - `{CONVOS_FILE}` → conversations file name
 - `{LONGTERM_FILE}` → longterm file name
-- `{RELOAD_INTERVAL}` → reload interval number
 - `{PRESET}` → chosen preset name
 - `{VERSION}` → plugin version from `.claude-plugin/plugin.json`
-- `{SEARCH_MODE_INSTRUCTION}` → resolved based on search_mode and language:
-  - **strong + en**: `7. **MANDATORY pre-response search**: Before EVERY response, first analyze the user's intent and use the \`memory-recall\` skill to search memories. No exceptions — always search first, respond second.`
-  - **weak + en**: `7. **Uncertainty about current topic**: If the conversation could possibly relate to past context, you MUST use the \`memory-recall\` skill to search memories before responding`
-  - **strong + zh**: `7. **強制預搜尋**：每次回覆前，必須先分析使用者意圖，然後使用 \`memory-recall\` skill 搜尋記憶。沒有例外 — 永遠先搜尋再回覆。`
-  - **weak + zh**: `7. **對當前話題不確定**：如果對話有可能涉及過去的上下文，必須先使用 \`memory-recall\` skill 搜尋記憶再回覆`
+- `{SEARCH_MODE_INSTRUCTION}` → resolved based on search_mode and language. Emit as a standalone paragraph (no numbered prefix):
+  - **strong + en**: `**Strict search mode**: By default, check memories with the \`memory-recall\` skill before responding; skip only when the topic is clearly unrelated to history (greetings, pure computation, etc.).`
+  - **weak + en**: `**Judgment-based search**: When you judge that a topic may involve past discussions or established preferences, search with the \`memory-recall\` skill before responding.`
+  - **strong + zh**: `**嚴格搜尋模式**：回覆前預設先用 \`memory-recall\` skill 檢查一次記憶;只有話題明顯與歷史無關（打招呼、純粹計算等)時才略過。`
+  - **weak + zh**: `**判斷式搜尋**：當你判斷話題可能涉及過去討論或既有偏好時,先用 \`memory-recall\` skill 搜尋後再回覆。`
 
 Then apply to `CLAUDE.md` in the project root:
 
@@ -110,11 +99,16 @@ Then apply to `CLAUDE.md` in the project root:
 2. **If CLAUDE.md exists but has no markers**: Append the resolved content to the end of the file (with a blank line separator)
 3. **If CLAUDE.md does not exist**: Create a new CLAUDE.md with only the resolved content
 
-Tell the user: "Memory instructions have been added to CLAUDE.md for high-priority instruction following. The hook will now only inject lightweight datetime/turn signals."
+The `@{PREFS_FILE}` reference inside the section causes Claude Code to auto-load preferences into context on every session start.
 
-### 6. Initialize Counter
+### 6. Upgrade Path (Re-running Init)
 
-Create `.claude/memory_counter.txt` with content `0`.
+If `.claude/memory-settings.json` already exists:
+
+1. Ask what the user wants to change (preset / language / search_mode / file names)
+2. Update `.claude/memory-settings.json` with the new values
+3. Re-generate the CLAUDE.md section (Step 5c) with the new values
+4. If file names changed, leave the old files in place and tell the user to move them manually — do not delete existing memory content
 
 ### 7. Optional Customization
 
@@ -128,16 +122,6 @@ Ask the user: "Would you like to fill in your initial preferences now?"
 
 If yes, walk through each section and populate the preferences file with the user's answers.
 
-### 8.5 Upgrade Path (Re-running Init)
-
-If `.claude/memory-settings.json` already exists but `search_mode` is not set:
-
-1. Skip steps 1–3 (preset, file names, language are already configured)
-2. Ask: "search_mode is not configured yet — would you like to enable strong search mode?"
-3. Update `memory-settings.json` with the chosen `search_mode` value
-4. Re-generate the reminder file (Step 5b) and CLAUDE.md section (Step 5c) with the new search mode instruction
-5. Do NOT reset other settings (preset, files, language, etc.)
-
 ### 9. Output Summary
 
 Display a summary of what was created:
@@ -147,19 +131,18 @@ Engram Memory System Initialized!
 
 Preset: <preset>
 Language: <language>
+Search mode: <search_mode>
 
 Files created/updated:
-  - <preferences-file> (preferences)
+  - <preferences-file> (preferences — auto-loaded via @ reference in CLAUDE.md)
   - <conversations-file> (conversation history)
   - <longterm-file> (long-term memories)
   - .claude/memory-settings.json (configuration)
-  - .claude/memory-reminder.md (legacy hook instructions)
-  - .claude/memory_counter.txt (turn counter)
-  - CLAUDE.md (memory instructions — high priority)
+  - CLAUDE.md (memory instructions + preferences auto-load)
 
-The memory system is now active. I will automatically:
-  - Load your preferences on turn 1 and every N turns
+The memory system is now active. I will:
+  - See your preferences every session via the @-reference in CLAUDE.md
   - Save new preferences and decisions as I discover them
-  - Record conversation summaries
-  - Search past conversations when relevant
+  - Record conversation summaries at natural endpoints
+  - Search past memories when a topic relates to previous context
 ```

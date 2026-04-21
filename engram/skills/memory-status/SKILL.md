@@ -1,6 +1,6 @@
 ---
 name: memory-status
-description: Display memory system status. Auto-triggered when the user asks about memory state or for diagnostics.
+description: Display Engram memory system status — configuration, file sizes, entry counts, and health check. Trigger when the user asks about memory state, what's been remembered, or for diagnostics.
 ---
 
 # Memory Status
@@ -22,23 +22,25 @@ Use when:
 Read `.claude/memory-settings.json` for:
 - Preset type
 - File names
-- Language setting
-- Reload interval
+- Language
+- Search mode
 
-### 2. Read Turn Counter
+If the file is missing, tell the user to run `memory-init` first.
 
-Read `.claude/memory_counter.txt` for the current conversation turn count.
-
-### 3. Inspect Memory Files
+### 2. Inspect Memory Files
 
 For each of the three memory files, gather:
 - File exists? (yes/no)
 - File size (approximate line count)
-- Last modified date
+- Last modified date (via `stat` or `ls -l`)
 - Number of entries:
   - Preferences: count of filled (non-empty) fields
   - Conversations: count of `### YYYY-MM-DD` entries
   - Long-term: count of `- YYYY-MM-DD:` entries
+
+### 3. Check CLAUDE.md Integration
+
+Verify that `CLAUDE.md` contains `<!-- ENGRAM:START -->` / `<!-- ENGRAM:END -->` markers and an `@{PREFS_FILE}` reference. This is what auto-loads preferences each session.
 
 ### 4. Display Status Report
 
@@ -49,26 +51,32 @@ Engram Memory System Status
 ═══════════════════════════
 
 Configuration:
-  Preset:           <preset>
-  Language:          <language>
-  Reload interval:   every <N> turns
-  Conversation turn: <current-turn>
+  Preset:      <preset>
+  Language:    <language>
+  Search mode: <strong|weak>
 
 Memory Files:
   <preferences-file>
-    Status:  <exists/missing>
-    Size:    <lines> lines
-    Fields:  <filled>/<total> filled
+    Status:   <exists/missing>
+    Size:     <lines> lines
+    Modified: <date>
+    Fields:   <filled>/<total> filled
 
   <conversations-file>
-    Status:  <exists/missing>
-    Size:    <lines> lines
-    Entries: <count> conversations
+    Status:   <exists/missing>
+    Size:     <lines> lines
+    Modified: <date>
+    Entries:  <count> conversations
 
   <longterm-file>
-    Status:  <exists/missing>
-    Size:    <lines> lines
-    Entries: <count> memories
+    Status:   <exists/missing>
+    Size:     <lines> lines
+    Modified: <date>
+    Entries:  <count> memories
+
+CLAUDE.md Integration:
+  ENGRAM section: <present/missing>
+  @-reference:    <present/missing>
 
 Recent Conversations (last 3):
   - YYYY-MM-DD HH:MM - Topic
@@ -78,14 +86,15 @@ Recent Conversations (last 3):
 Health Check:
   ✓ All files present
   ✓ Preferences populated
+  ✓ CLAUDE.md integration active
   ✗ No conversation summaries yet
 ```
 
 ### 5. Health Check Items
 
 Check for:
-- Missing memory files → warn and offer to recreate
+- Missing memory files → warn and offer to recreate via `memory-init`
 - Empty preferences file → suggest filling in
 - No conversation summaries → note that this is normal for new setups
-- Missing counter file → offer to reinitialize
-- Missing settings file → offer to run memory-init
+- Missing settings file → offer to run `memory-init`
+- Missing CLAUDE.md ENGRAM section → preferences won't auto-load; offer to re-run `memory-init` to restore

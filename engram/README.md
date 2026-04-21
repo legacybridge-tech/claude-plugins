@@ -1,19 +1,19 @@
 # Engram
 
-Persistent memory system for Claude Code with three-file separation architecture.
+Persistent memory system for Claude Code — three markdown files, a `CLAUDE.md` section, and four skills. No hooks, no daemons.
 
-Engram gives Claude persistent memory across conversations by maintaining three specialized files: **preferences** (always-loaded), **conversation history** (searchable, newest-first), and **long-term memories** (append-only archive). Everything is fully automatic — a hook injects memory instructions on every prompt, and AI skills handle reading, writing, and searching without manual commands.
+Engram gives Claude persistent memory across conversations by maintaining three specialized files: **preferences** (auto-loaded into context every session), **conversation history** (searchable, newest-first), and **long-term memories** (append-only archive). The `memory-init` skill wires everything up, and three more skills (`memory-remember`, `memory-recall`, `memory-status`) handle reading, writing, and diagnostics.
 
 ## Architecture: Three-File Separation
 
 | File | Purpose | Access Strategy |
 |------|---------|-----------------|
-| `memory_preferences.md` | User/project preferences | Always-loaded via Read (turn 1, every N turns) |
+| `memory_preferences.md` | User/project preferences | Auto-loaded into context via `@` reference in `CLAUDE.md` |
 | `memory_conversations.md` | Conversation summaries | On-demand Grep search, newest-first |
 | `memory_longterm.md` | Permanent memories | On-demand Grep search, append-only |
 
 This separation optimizes for both context window usage and retrieval accuracy:
-- **Preferences** are small and frequently needed — loaded fully into context
+- **Preferences** are small and always relevant — loaded on every session via `@`
 - **Conversations** grow large over time — searched selectively by topic
 - **Long-term memories** are permanent records — searched selectively, never deleted
 
@@ -25,90 +25,60 @@ Install as a Claude Code plugin:
 claude plugin add ./engram
 ```
 
-Or add to your project's `.claude/settings.json`:
-
-```json
-{
-  "plugins": ["path/to/engram"]
-}
-```
-
 ## Getting Started
 
-After installation, **you must initialize the memory system before first use**. Engram's hook automatically detects whether initialization has been completed and will guide you through the setup process:
-
-1. **Auto-detection**: On your first prompt, the hook detects that `.claude/memory-settings.json` does not exist and triggers the `memory-init` skill
-2. **Choose a preset**: Select `personal-assistant`, `project-assistant`, `character-companion`, or `pair-programmer` based on your use case
-3. **Customize file names** (optional): Keep the defaults or rename the three memory files
-4. **Choose language**: Select the language for hook-injected instructions (`en` or `zh`)
-5. **Done**: The system creates your configuration, memory file templates, and turn counter
-
-All memory features (recall, remember, status) only work after initialization is complete. If you attempt to use them beforehand, the hook will keep prompting you to run `memory-init` first.
-
-You can also trigger initialization manually at any time:
+After installation, run:
 
 ```
 /engram:memory-init
 ```
+
+This walks through:
+
+1. **Choose a preset**: `personal-assistant`, `project-assistant`, `character-companion`, or `pair-programmer`
+2. **Customize file names** (optional): keep defaults or rename the three memory files
+3. **Choose language**: `en` or `zh` for the `CLAUDE.md` instruction section
+4. **Choose search mode**: `weak` (judgment-based, default) or `strong` (check by default)
+5. Engram creates the memory files, writes configuration, and appends an `ENGRAM` section to `CLAUDE.md` that auto-loads your preferences.
+
+From that point on, preferences are in Claude's context every session, and the three other skills trigger automatically based on conversation content.
 
 ## Presets
 
 Engram ships with four preset templates optimized for different use cases:
 
 ### Personal Assistant
-
 For daily life management, personal interactions, and habit tracking.
 
-- **Preferences**: Basic info, daily routine, communication style, interests, tools, health
-- **Conversations**: Tasks completed, information lookups, daily interactions
-- **Long-term**: Life events, preference evolution, important dates
-
 ### Project Assistant
-
 For software development, architecture decisions, and team workflow.
 
-- **Preferences**: Project overview, tech stack, coding conventions, team workflow, testing
-- **Conversations**: Feature discussions, bug fixes, design decisions, code reviews
-- **Long-term**: Architecture decisions (ADR), milestones, lessons learned, tech debt
-
 ### Character Companion
-
 For persona-based interactions, relationship development, and story progression.
 
-- **Preferences**: User info, interaction preferences, character persona, relationship framework
-- **Conversations**: Emotional interactions, story progression, relationship moments
-- **Long-term**: Relationship milestones, shared experiences, character development
-
 ### Pair Programmer
-
 For AI self-improvement through tracking corrections, user preferences about AI behavior, and collaboration patterns.
-
-- **Preferences**: AI behavior config, user working style, active always/never rules
-- **Conversations**: Corrections received, patterns observed, rules discovered, friction points
-- **Long-term**: Mistake log, user preference rules, collaboration patterns, growth log
 
 ## How It Works
 
-### Fully Automatic Flow
+### Flow
 
-1. **Hook fires** on every user prompt (`UserPromptSubmit`)
-2. **Not initialized?** → Hook tells AI to run `memory-init` skill → user picks preset
-3. **Initialized** → Hook injects datetime, turn counter, and memory instructions
-4. **AI reads preferences** on turn 1 and every N turns (configurable)
-5. **AI discovers new info** → auto-triggers `memory-remember` to save it
-6. **Topic relates to past** → auto-triggers `memory-recall` to search memories
-7. **Conversation ends** → auto-triggers `memory-remember` to save summary
+1. **Session starts** → `CLAUDE.md` loads, including the ENGRAM section + `@memory_preferences.md`. Claude sees preferences without doing anything.
+2. **Topic relates to past** → Claude invokes `memory-recall` → Grep conversations / longterm files.
+3. **New preference, decision, or milestone surfaces** → Claude invokes `memory-remember` → writes to the appropriate file using `date` for timestamps.
+4. **Preferences file is updated mid-session** → Write tool result already shows Claude the new content (no explicit reload needed).
+5. **User asks about memory state** → Claude invokes `memory-status` → displays config + file stats + health check.
 
-No slash commands needed. The AI handles everything through skill instructions injected by the hook.
+No hooks, no per-turn injection, no state files to track. The entire system is: three memory files + one `CLAUDE.md` section + four skills.
 
 ### Skills
 
 | Skill | Trigger | Action |
 |-------|---------|--------|
-| `memory-init` | No config found | Ask preset, create files, configure |
-| `memory-remember` | New preference/decision/milestone | Write to appropriate memory file |
-| `memory-recall` | Topic relates to past context | Search across all memory files |
-| `memory-status` | User asks about memory | Display config, stats, health check |
+| `memory-init` | User sets up memory, or config missing | Ask preset, create files, wire up CLAUDE.md |
+| `memory-remember` | New preference/decision/milestone, or conversation endpoint | Write to appropriate memory file |
+| `memory-recall` | Topic may relate to past context | Grep across conversations + longterm |
+| `memory-status` | User asks about memory state | Display config, stats, health check |
 
 ## Configuration
 
@@ -116,44 +86,29 @@ Settings are stored in `.claude/memory-settings.json`:
 
 ```json
 {
-  "enabled": true,
   "preset": "personal-assistant",
   "files": {
     "preferences": "memory_preferences.md",
     "conversations": "memory_conversations.md",
     "longterm": "memory_longterm.md"
   },
-  "reload_interval": 10,
   "language": "en",
-  "reminder_file": ".claude/memory-reminder.md"
+  "search_mode": "weak"
 }
 ```
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| `enabled` | Enable/disable the memory system | `true` |
-| `preset` | Active preset template | `"personal-assistant"` |
+| `preset` | Active preset template (stored for reference / re-init) | `"personal-assistant"` |
 | `files.preferences` | Preferences file name | `"memory_preferences.md"` |
 | `files.conversations` | Conversations file name | `"memory_conversations.md"` |
 | `files.longterm` | Long-term memory file name | `"memory_longterm.md"` |
-| `reload_interval` | Re-read preferences every N turns | `10` |
-| `language` | Hook instruction language (`en` or `zh`) | `"en"` |
-| `reminder_file` | Path to customizable reminder instructions | `".claude/memory-reminder.md"` |
+| `language` | CLAUDE.md section language (`en` or `zh`) | `"en"` |
+| `search_mode` | `weak` (judgment-based) or `strong` (check by default) | `"weak"` |
 
-### Customizing Hook Instructions
+### Customizing the CLAUDE.md Section
 
-The instructions injected on every prompt are stored in `.claude/memory-reminder.md`. You can edit this file to change what Claude receives each turn — adjust wording, add rules, remove triggers, or completely rewrite the instructions.
-
-The file supports these placeholders, which are substituted at runtime:
-
-| Placeholder | Replaced with |
-|-------------|---------------|
-| `{{PREFS_FILE}}` | Preferences file name from settings |
-| `{{CONVOS_FILE}}` | Conversations file name from settings |
-| `{{LONGTERM_FILE}}` | Long-term memory file name from settings |
-| `{{RELOAD_INTERVAL}}` | Reload interval from settings |
-
-If the reminder file does not exist, the hook falls back to built-in default instructions based on the `language` setting.
+The `ENGRAM` section in `CLAUDE.md` (between `<!-- ENGRAM:START -->` and `<!-- ENGRAM:END -->`) is fully editable. Re-running `memory-init` will regenerate it, so if you make manual tweaks, keep a copy or re-apply them after upgrades.
 
 ## Memory File Formats
 
@@ -174,7 +129,7 @@ Markdown with structured sections. Updated in-place when preferences change.
 Reverse chronological entries. New entries prepended to top.
 
 ```markdown
-### 2025-01-29 14:30 ~ 15:00 - Auth refactor discussion
+### 2025-01-29 14:30 - Auth refactor discussion
 
 Discussed migrating from session-based to JWT authentication.
 Decided on refresh token rotation strategy.
@@ -196,8 +151,15 @@ Append-only entries under categorized sections.
 
 ## Requirements
 
-- `jq` — JSON processing in the hook script
-- `date` — datetime formatting (standard on macOS/Linux)
+- `date` — timestamp generation (standard on macOS/Linux)
+
+## Upgrading from v1.x
+
+v2.0 removes the `UserPromptSubmit` hook entirely. If you were on v1.x:
+
+- Re-run `/engram:memory-init` once to regenerate `.claude/memory-settings.json` (drops the obsolete `enabled`, `reload_interval`, `reminder_file` fields)
+- Delete `.claude/memory_counter.txt` and `.claude/memory-reminder.md` if present — they are no longer used
+- Your memory files (`memory_preferences.md` etc.) are untouched
 
 ## License
 
