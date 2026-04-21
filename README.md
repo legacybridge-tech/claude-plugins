@@ -1,6 +1,6 @@
 # Claude Tools
 
-A curated collection of 8 professional-grade Claude Code plugins for enhancing AI-assisted workflows.
+A curated collection of 10 professional-grade Claude Code plugins for enhancing AI-assisted workflows.
 
 ---
 
@@ -25,6 +25,8 @@ claude
 /plugin install agent-browser@legacybridge-cc-plugins
 /plugin install tailwindplus@legacybridge-cc-plugins
 /plugin install steady-hand@legacybridge-cc-plugins
+/plugin install engram@legacybridge-cc-plugins
+/plugin install meta-skill@legacybridge-cc-plugins
 
 # Or browse and install interactively
 /plugin
@@ -37,13 +39,15 @@ claude
 | Plugin | Description | Version |
 |--------|-------------|---------|
 | **TEDS** | Task Execution Documentation System | 1.2.0 |
-| **AkashicRecords** | AI-native knowledge management | 1.6.0 |
+| **AkashicRecords** | AI-native knowledge management | 1.7.0 |
 | **ProjectMaster** | Software project management | 1.2.1 |
 | **Multi-Perspective** | Multi-expert proposition analysis | 1.0.0 |
 | **Gemini API** | Google Gemini API integration | 1.0.0 |
 | **Agent Browser** | Browser automation for web tasks | 1.0.0 |
-| **TailwindPlus** | TailwindPlus UI component library | 1.0.0 |
+| **TailwindPlus** | TailwindPlus UI component library | 2.0.0 |
 | **Steady-Hand** | Context usage monitoring & quality reminders | 1.1.3 |
+| **Engram** | Persistent memory system across sessions | 2.0.0 |
+| **Meta-Skill** | Dynamic on-demand skill loading | 1.0.0 |
 
 ---
 
@@ -217,6 +221,45 @@ Context usage monitoring plugin that maintains quality standards by injecting re
 
 ---
 
+### Engram
+
+Persistent memory system that gives Claude memory across conversations through three specialized markdown files and a `CLAUDE.md` section — no hooks, no daemons.
+
+**Key Features**:
+- Three-file separation: preferences (auto-loaded), conversations (searchable), long-term memories (append-only)
+- Four presets: `personal-assistant`, `project-assistant`, `character-companion`, `pair-programmer`
+- Bilingual CLAUDE.md section (`en` / `zh`)
+- Configurable search mode (`weak` judgment-based, or `strong` check-by-default)
+
+**Quick Start**:
+```bash
+/plugin install engram@legacybridge-cc-plugins
+/engram:memory-init
+```
+
+**Documentation**: [engram/README.md](./engram/README.md)
+
+---
+
+### Meta-Skill
+
+Dynamic skill library that loads skills on-demand from `SKILLUSE.md` instead of at session startup, keeping the context budget free for skills you actually need.
+
+**Key Features**:
+- Two-layer system: lightweight `SKILLUSE.md` manifest + full definitions in `skill-library/`
+- Only meta-skill itself loads natively; others are matched dynamically per request
+- Bypasses the ~2% context budget consumed by pre-loading all skill descriptions
+
+**Quick Start**:
+```bash
+/plugin install meta-skill@legacybridge-cc-plugins
+"Initialize skill library"
+```
+
+**Documentation**: [meta-skill/README.md](./meta-skill/README.md)
+
+---
+
 ## Philosophy & Design
 
 ### RULE.md-Driven Architecture
@@ -270,7 +313,7 @@ Software teams have diverse workflows:
 ```
 claude-tools/
 ├── .claude-plugin/
-│   └── marketplace.json          # Marketplace metadata (v1.10.0)
+│   └── marketplace.json          # Marketplace metadata (v1.19.0)
 ├── LICENSE                       # MIT License
 ├── CLAUDE.md                     # Development guide
 ├── README.md                     # This file
@@ -281,7 +324,9 @@ claude-tools/
 ├── gemini-api/                   # Gemini API Plugin
 ├── agent-browser/                # Agent Browser Plugin
 ├── tailwindplus/                 # TailwindPlus Plugin
-└── steady-hand/                  # Steady-Hand Plugin
+├── steady-hand/                  # Steady-Hand Plugin
+├── engram/                       # Engram Plugin
+└── meta-skill/                   # Meta-Skill Plugin
 ```
 
 ---

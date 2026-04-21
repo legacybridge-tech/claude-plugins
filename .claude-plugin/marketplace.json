@@ -16,7 +16,7 @@
       "name": "teds",
       "source": "./teds",
       "description": "Task Execution Documentation System - Comprehensive documentation for complex, multi-session tasks",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "keywords": [
         "task-management",
         "documentation",
@@ -28,7 +28,7 @@
       "name": "akashicrecords",
       "source": "./akashicrecords",
       "description": "Generic knowledge management with RULE.md-driven business logic - universal file operations that adapt to any directory structure",
-      "version": "1.2.0",
+      "version": "1.7.0",
       "keywords": [
         "knowledge-management",
         "governance",
@@ -41,7 +41,7 @@
       "name": "projectmaster",
       "source": "./projectmaster",
       "description": "Comprehensive software project management system with support for Agile, Scrum, Kanban, and Waterfall methodologies. Manages meetings, sprints, milestones, and project documentation with full AkashicRecords governance integration.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "keywords": [
         "project-management",
         "agile",
